@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <meta name="author" content="">
+  <meta name="description" content="">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://unpkg.com/handsfree@7.2.12/build/lib/assets/handsfree.css" />
+  <script src="https://unpkg.com/handsfree@7.2.12/build/lib/handsfree.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidi"></script>
+
+  <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+  <div id="location">
+    <div id="xloc"></div>
+    <div id="yloc"></div>
+  </div>
+  <canvas id="canvas">
+  </canvas>
+
+  <img src="images/box.png" id="target" />
+  <script>
+    // Helper map function to constain input values to valid MIDI CC ranges
+    Number.prototype.map = function (in_min, in_max, out_min, out_max) {
+      return (this - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    }
+
+    // Initialize the canvas
+    canvas = document.getElementById("canvas");
+    canvas.width = document.body.clientWidth;
+    canvas.height = document.body.clientHeight;
+    var context = canvas.getContext("2d");
+    let centerX = canvas.width / 2;
+    let centerY = canvas.height / 2;
+
+    // Enable Webmidi
+    WebMidi.enable(function (err) {
+      if (err) {
+        console.log("WebMidi could not be enabled.", err);
+      }
+
+      // Enumerate outputs
+      console.log(WebMidi.outputs);
+
+      // var output = WebMidi.getOutputById("123456789");
+      // var output = WebMidi.getOutputByName("CV-8");
+      var output = WebMidi.getOutputByName("IAC Driver Bus 1");
+
+      // output = WebMidi.outputs[0];
+
+      // Enable Handsfree
+      const handsfree = new Handsfree({
+        face: true
+      })
+      handsfree.start();
+
+      var x = 0;
+      var y = 0;
+      var cc1 = 0;
+      var cc2 = 0;
+      var xloc = document.getElementById("xloc");
+      var yloc = document.getElementById("yloc");
+      var location = document.getElementById("location");
+      var image = document.getElementById("target");
+
+      handsfree.use('logger', function (face) {
+        // console.log(face);
+
+        x = face.face.pointer.x;
+        y = face.face.pointer.y;
+        location.style.left = (70 + x) + "px";
+        location.style.top = y + "px";
+        target.style.left = (x - 40) + "px";
+        target.style.top = (y - 40)+ "px";
+        xloc.innerText = x;
+        yloc.innerText = y;
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.beginPath();
+        context.moveTo(centerX, centerY);
+        context.lineTo(x, y);
+        context.strokeStyle = "#FFFFFF";
+        context.stroke();
+
+        if (x < 0) {
+          x = 0;
+        }
+        if (x > 2560) {
+          x = 2560;
+        }
+        if (y < 0) {
+          y = 0;
+        }
+        if (y > 1440) {
+          y = 1440;
+        }
+
+        var newCC1 = Math.round(x.map(0, 2560, 0, 127));
+        var newCC2 = Math.round(y.map(0, 1440, 0, 127));
+
+        if (cc1 != newCC1) {
+          cc1 = newCC1;
+          output.sendControlChange(8, cc1, 1);
+        }
+
+        if (cc2 != newCC2) {
+          cc2 = newCC2;
+          output.sendControlChange(9, cc2, 1);
+        }
+
+        /*
+        if (face.face.state.smile == true) {
+          output.sendControlChange(10, 127, 1);
+        } else {
+          output.sendControlChange(10, 0, 1);
+        }
+
+        if (face.face.state.browsUp == true) {
+          output.sendControlChange(11, 127, 1);
+        } else {
+          output.sendControlChange(11, 0, 1);
+        }*/
+      });
+    });
+  </script>
+</body>
+
+</html>
